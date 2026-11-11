@@ -1,5 +1,2964 @@
-<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Grundriss CAD</title><link rel="stylesheet" href="style.css"></head><body>
-<header><div><strong>◈ GRUNDRISS <span>CAD</span></strong><small>2D-Zeichenstudio</small></div><div class="headright"><span class="badge">LOKAL IM BROWSER</span><button id="help">? Hilfe</button></div></header>
-<main><aside><div class="section">WERKZEUGE</div><div class="tools" id="tools"><button data-tool="select" class="active" title="Auswählen (V)">⌖ <span>Auswählen</span><kbd>V</kbd></button><button data-tool="line" title="Linie (L)">╱ <span>Linie</span><kbd>L</kbd></button><button data-tool="rect" title="Rechteck (R)">□ <span>Rechteck</span><kbd>R</kbd></button><button data-tool="circle" title="Kreis (C)">○ <span>Kreis</span><kbd>C</kbd></button><button data-tool="measure" title="Messen (M)">↔ <span>Messen</span><kbd>M</kbd></button><button data-tool="pan" title="Verschieben (H)">✥ <span>Ansicht</span><kbd>H</kbd></button></div><div class="section">ZEICHNUNG</div><label>Rasterweite <div class="inputrow"><input type="number" id="grid" value="10" min="0.01" step="1"><span>Einheiten</span></div></label><label class="check"><input type="checkbox" id="snap" checked> Am Raster fangen</label><div class="section">OBJEKT</div><div id="inspector"><p class="muted">Wähle ein Objekt, um Maße und Position zu bearbeiten.</p></div><button id="duplicate" class="secondary">⧉ Objekt duplizieren</button><div class="section">DATEI</div><div class="filebuttons"><button id="new">＋ &nbsp; Neue Zeichnung</button><button id="example">◇ &nbsp; Beispiel öffnen</button><button id="open">↥ &nbsp; Importieren</button><input type="file" id="file" accept=".json,.dxf" hidden><button id="save">↧ &nbsp; Projekt speichern</button><button id="dxf">↗ &nbsp; DXF exportieren</button><button id="svg">↗ &nbsp; SVG exportieren</button></div><p class="aside-note">Deine Zeichnung bleibt auf diesem Gerät. Speichere sie regelmäßig als Projektdatei.</p></aside>
-<section class="workspace"><div class="bar"><div><b id="toolname">Auswählen</b><span id="hint">Objekt anklicken zum Auswählen</span></div><div class="actions"><button id="undo" title="Rückgängig">↶</button><button id="redo" title="Wiederholen">↷</button><button id="delete" title="Auswahl löschen">⌫</button><i></i><button id="minus">−</button><span id="zoom">100%</span><button id="plus">+</button><button id="fit" title="Alles anzeigen">⊡</button></div></div><div class="canvaswrap"><canvas id="canvas"></canvas><div class="canvaslabel">ZEICHENFLÄCHE <span> / 2D</span></div><button id="propertiesMobile" class="properties-mobile">⚙ Objekt bearbeiten</button><div id="empty"><div>✳</div><b>Raum für deine Ideen.</b><p>Wähle ein Werkzeug und beginne zu zeichnen.<br>Oder importiere eine bestehende DXF-Datei.</p><button id="start">Linie zeichnen <span>↗</span></button></div><div id="toast" role="status"></div></div><footer><span><i></i> BEREIT</span><span id="coords">X 0 · Y 0</span><span id="count">0 OBJEKTE</span><span>1 EINHEIT = 1 ZEICHNUNGSEINHEIT</span></footer></section></main>
-<dialog id="dialog"><h2>Dein Zeichenstudio</h2><p>Wähle Linie, Rechteck oder Kreis und tippe zwei Punkte an. Mit „Auswählen“ markierst du Objekte und kannst sie löschen. „Ansicht“ verschiebt die Zeichenfläche; Mausrad oder +/− zoomt.</p><p>DXF-Import unterstützt ASCII-DXF mit LINE, CIRCLE und LWPOLYLINE (gerade Segmente). Andere Elemente werden übersprungen. DXF-Export enthält Linien und Kreise. Projektdateien (JSON) bewahren die bearbeitbare Zeichnung.</p><p>Esc bricht eine Zeichnung ab. Strg+Z / Strg+Y macht Änderungen rückgängig / wiederholt sie. Maße entsprechen den Zeichnungseinheiten; diese App ersetzt keine professionelle Bauplanung.</p><p>Objekte lassen sich nach der Auswahl in den Eigenschaften exakt bearbeiten und duplizieren. Die letzte Zeichnung wird automatisch in diesem Browser gespeichert. Sichere wichtige Daten zusätzlich als Projektdatei.</p><button id="close">Verstanden</button></dialog><script src="app.js"></script></body></html>
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#172b36" />
+    <meta
+      name="description"
+      content="Grundriss Studio: präzise 2D-Pläne, Bemaßungen und DXF im Browser."
+    />
+    <title>Grundriss Studio · 2D CAD</title>
+    <style>
+:root {
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  color: #253e46;
+  background: #f6f7f4;
+  font-synthesis: none;
+  --ink: #172b36;
+  --muted: #82918f;
+  --accent: #dc764f;
+  --line: #e2e6e1;
+  --green: #376657;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+button,
+input,
+select,
+summary {
+  font: inherit;
+}
+button,
+summary {
+  cursor: pointer;
+}
+button {
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: 6px;
+}
+button:hover {
+  background: #e9eeea;
+}
+button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+button:focus-visible,
+summary:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+input,
+select {
+  border: 1px solid #dbe2dc;
+  border-radius: 5px;
+  background: #fff;
+  color: #29434a;
+  padding: 8px;
+  min-width: 0;
+}
+input:focus,
+select:focus {
+  outline: 2px solid #78a294;
+}
+input[type="checkbox"] {
+  accent-color: var(--green);
+  width: 15px;
+  height: 15px;
+  padding: 0;
+}
+input[type="color"] {
+  height: 32px;
+  padding: 3px;
+}
+.app-header {
+  height: 76px;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 0 25px;
+  background: var(--ink);
+  color: #edf3ec;
+}
+.brand {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: inherit;
+  text-decoration: none;
+  font-weight: 700;
+  letter-spacing: 2px;
+  font-size: 15px;
+}
+.brand-icon {
+  font-size: 38px;
+  line-height: 1;
+  color: #edb18e;
+}
+.brand small {
+  display: block;
+  font-size: 8px;
+  letter-spacing: 2.5px;
+  font-weight: 400;
+  color: #9cafb0;
+  margin-top: 5px;
+}
+.project-title {
+  border-left: 1px solid #3b4a50;
+  padding-left: 28px;
+  flex: 1;
+}
+.project-title input {
+  display: block;
+  background: none;
+  color: #f3f4ee;
+  border: 0;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 500;
+  width: min(300px, 100%);
+}
+.project-title span {
+  display: block;
+  font-size: 10px;
+  color: #a7b7b2;
+  margin-top: 4px;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.primary {
+  background: var(--accent);
+  color: white;
+  padding: 11px 18px;
+  font-weight: 600;
+  font-size: 12px;
+  box-shadow: 0 3px 8px #0e212022;
+}
+.primary:hover {
+  background: #c96743;
+}
+.quiet {
+  color: #bccac7;
+  font-size: 12px;
+  padding: 8px;
+}
+.quiet:hover {
+  background: #293f49;
+}
+.filebar {
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 23px;
+  border-bottom: 1px solid var(--line);
+  gap: 10px;
+  background: #fff;
+}
+.file-actions,
+.drawing-settings {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.file-actions button,
+summary {
+  padding: 7px;
+}
+.drawing-settings label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.drawing-settings select {
+  padding: 4px;
+}
+.drawing-settings input[type="number"] {
+  width: 60px;
+  padding: 4px;
+}
+.export-menu {
+  position: relative;
+}
+.export-menu summary {
+  list-style: none;
+}
+.export-menu > div {
+  position: absolute;
+  top: 35px;
+  left: 0;
+  background: #fff;
+  box-shadow: 0 8px 30px #172b3626;
+  z-index: 20;
+  padding: 7px;
+  width: 170px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.export-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+}
+main {
+  display: flex;
+  height: calc(100dvh - 126px);
+  min-height: 250px;
+}
+.toolrail {
+  width: 122px;
+  flex-shrink: 0;
+  background: #fff;
+  border-right: 1px solid var(--line);
+  padding: 20px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: auto;
+}
+.rail-title {
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: #9da9a1;
+  margin: 0 6px 10px;
+}
+.toolrail button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-align: left;
+  padding: 11px 8px;
+}
+.toolrail b {
+  font-size: 20px;
+  font-weight: 400;
+  width: 20px;
+  text-align: center;
+}
+.toolrail span {
+  font-size: 10px;
+}
+.toolrail kbd {
+  font: 8px system-ui;
+  color: #b4bdb7;
+  margin-left: auto;
+}
+.toolrail button.active {
+  background: #e7efe9;
+  color: #275a46;
+  box-shadow: inset 3px 0 #537d65;
+}
+.rail-bottom {
+  font-size: 8px;
+  color: #b4beb6;
+  letter-spacing: 1.4px;
+  line-height: 1.7;
+  margin: auto 9px 0;
+  padding-top: 30px;
+}
+.workspace {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.canvasbar {
+  height: 51px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px;
+  background: #fcfdfb;
+  border-bottom: 1px solid var(--line);
+}
+.canvasbar strong {
+  font-size: 12px;
+}
+.live-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #77a082;
+  margin-right: 8px;
+}
+#hint {
+  font-size: 10px;
+  color: #9aa69d;
+  margin-left: 15px;
+}
+.history-actions {
+  display: flex;
+  gap: 5px;
+}
+.history-actions button {
+  font-size: 20px;
+  width: 30px;
+  height: 30px;
+}
+#stage {
+  position: relative;
+  flex: 1;
+  min-height: 120px;
+  overflow: hidden;
+  background: #f5f7f2;
+}
+#drawing {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  user-select: none;
+  outline: 0;
+  cursor: crosshair;
+}
+.plan-badge {
+  position: absolute;
+  top: 19px;
+  left: 20px;
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  pointer-events: none;
+  font-size: 8px;
+  letter-spacing: 1.7px;
+  color: #8a9c8d;
+}
+.plan-badge b {
+  font-size: 8px;
+  letter-spacing: 0;
+  padding: 4px;
+  background: #e6ede3;
+  border-radius: 3px;
+  color: #71846e;
+}
+#welcome {
+  position: absolute;
+  top: 46%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  width: 90%;
+  pointer-events: none;
+}
+#welcome h1 {
+  font-size: clamp(24px, 3vw, 40px);
+  font-weight: 500;
+  letter-spacing: -1.4px;
+  line-height: 1.2;
+  color: #31534b;
+}
+#welcome p {
+  font-size: 12px;
+  line-height: 1.8;
+  color: #81978a;
+}
+#welcome button {
+  pointer-events: auto;
+  margin-top: 12px;
+}
+#welcome small {
+  display: block;
+  font-size: 10px;
+  color: #9eafa2;
+  margin-top: 15px;
+}
+.view-controls {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #dde4dc;
+  padding: 4px;
+  border-radius: 8px;
+  box-shadow: 0 5px 15px #263e3210;
+  font-size: 11px;
+}
+.view-controls button {
+  padding: 6px 10px;
+  font-size: 18px;
+}
+.view-controls button span {
+  font-size: 10px;
+}
+.view-controls i {
+  height: 16px;
+  border-left: 1px solid var(--line);
+  margin: 0 5px;
+}
+#zoomLabel {
+  width: 46px;
+  text-align: center;
+}
+footer {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 15px;
+  font-size: 9px;
+  color: #7f9388;
+  background: #fff;
+  border-top: 1px solid var(--line);
+  white-space: nowrap;
+}
+.footer-tip {
+  margin-left: auto;
+}
+#panel {
+  width: 282px;
+  flex-shrink: 0;
+  background: #fff;
+  border-left: 1px solid var(--line);
+  overflow: auto;
+}
+.panel-heading {
+  font-size: 9px;
+  letter-spacing: 1.2px;
+  color: #829088;
+  padding: 19px 20px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+}
+.panel-heading button {
+  display: none;
+}
+.panel-section {
+  padding: 20px;
+  border-bottom: 1px solid var(--line);
+}
+h2 {
+  font-size: 12px;
+  margin: 0 0 14px;
+  font-weight: 650;
+}
+.section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.section-heading > span {
+  font-size: 9px;
+  color: #9aa89e;
+}
+.section-heading > button {
+  font-size: 18px;
+}
+.muted {
+  font-size: 10px;
+  line-height: 1.7;
+  color: #8b9c90;
+}
+.empty-inspector {
+  text-align: center;
+  padding: 14px 5px;
+}
+.empty-inspector b {
+  font-size: 26px;
+  font-weight: 400;
+  color: #a1b8a7;
+}
+.fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.fields label {
+  font-size: 9px;
+  color: #7f9384;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.fields input,
+.fields select {
+  width: 100%;
+  font-size: 11px;
+}
+.fields .full {
+  grid-column: 1/-1;
+}
+.fields button {
+  padding: 9px;
+  background: #edf3ed;
+  font-size: 11px;
+  color: var(--green);
+}
+.metrics {
+  padding: 10px;
+  background: #f1f5ee;
+  border-radius: 5px;
+  font-size: 10px;
+  line-height: 1.8;
+  color: #54745c;
+  margin-bottom: 12px;
+}
+.object-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 14px;
+}
+.object-actions button {
+  font-size: 9px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  flex: 1;
+}
+.layer-row {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  border-radius: 6px;
+  padding: 6px 4px;
+  margin: 3px 0;
+}
+.layer-row.active {
+  background: #eff4ed;
+}
+.layer-row button {
+  padding: 4px;
+  font-size: 12px;
+}
+.layer-row .layer-name {
+  flex: 1;
+  text-align: left;
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.layer-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.stats {
+  display: flex;
+  gap: 24px;
+}
+.stats strong {
+  display: block;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -1px;
+}
+.stats span {
+  font-size: 9px;
+  color: #9aa79c;
+}
+.local-note {
+  margin: 20px;
+  font-size: 10px;
+  color: #69806a;
+}
+.local-note > span {
+  color: #83a075;
+  margin-right: 4px;
+}
+.local-note p {
+  font-size: 10px;
+  line-height: 1.7;
+  color: #9aaa9c;
+}
+.mobile-panel-button {
+  display: none;
+}
+#toast {
+  position: absolute;
+  bottom: 75px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 90%;
+  width: max-content;
+  background: #203d36;
+  color: #fff;
+  box-shadow: 0 3px 20px #172b3620;
+  border-radius: 6px;
+  padding: 12px 18px;
+  font-size: 12px;
+  display: none;
+  pointer-events: none;
+}
+#liveMeasure {
+  position: absolute;
+  top: 17px;
+  right: 15px;
+  background: #fff;
+  color: var(--green);
+  border-radius: 4px;
+  padding: 7px 10px;
+  font-size: 11px;
+  display: none;
+  pointer-events: none;
+  box-shadow: 0 2px 9px #223c2810;
+}
+dialog {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 540px;
+  width: calc(100% - 32px);
+  color: #345149;
+  box-shadow: 0 25px 100px #162f3540;
+}
+dialog::backdrop {
+  background: #122b3655;
+  backdrop-filter: blur(3px);
+}
+.dialog-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.dialog-top h2 {
+  font-size: 20px;
+  margin: 0;
+}
+.dialog-top button {
+  font-size: 24px;
+}
+dialog p,
+dialog li {
+  font-size: 12px;
+  line-height: 1.8;
+}
+dialog input {
+  width: 100%;
+  margin: 10px 0;
+}
+.dialog-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+.dialog-actions button {
+  padding: 10px 15px;
+}
+.shortcut-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  font-size: 11px;
+}
+.shortcut-grid kbd {
+  padding: 2px 5px;
+  background: #edf2ed;
+  border-radius: 3px;
+}
+.mobile-only {
+  display: none;
+}
+@media (min-width: 701px) and (max-width: 1100px) {
+  #panel {
+    width: 235px;
+  }
+  .panel-section {
+    padding: 16px;
+  }
+  .toolrail {
+    width: 98px;
+  }
+  .toolrail kbd {
+    display: none;
+  }
+  #hint {
+    display: none;
+  }
+  .footer-tip {
+    display: none;
+  }
+  .filebar {
+    padding: 0 12px;
+    gap: 4px;
+  }
+  .drawing-settings {
+    gap: 6px;
+  }
+  .file-actions {
+    gap: 5px;
+  }
+}
+@media (max-width: 700px) {
+  .app-header {
+    height: 62px;
+    padding: 0 12px;
+    gap: 13px;
+  }
+  .brand {
+    font-size: 11px;
+    gap: 4px;
+    letter-spacing: 1px;
+  }
+  .brand-icon {
+    font-size: 27px;
+  }
+  .brand small {
+    font-size: 6px;
+    letter-spacing: 1px;
+  }
+  .project-title {
+    padding-left: 12px;
+    min-width: 0;
+  }
+  .project-title input {
+    font-size: 11px;
+  }
+  .project-title span {
+    font-size: 8px;
+  }
+  .header-actions {
+    gap: 5px;
+  }
+  .header-actions .quiet {
+    padding: 8px;
+  }
+  .header-actions button span {
+    display: none;
+  }
+  .header-actions .primary {
+    padding: 8px 12px;
+    font-size: 17px;
+  }
+  .filebar {
+    height: 77px;
+    padding: 6px 10px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  .file-actions {
+    gap: 10px;
+  }
+  .drawing-settings {
+    gap: 9px;
+    font-size: 10px;
+    width: 100%;
+    overflow: auto;
+  }
+  .drawing-settings input[type="number"] {
+    width: 43px;
+  }
+  .drawing-settings label {
+    gap: 3px;
+    flex-shrink: 0;
+  }
+  main {
+    height: calc(100dvh - 139px);
+    flex-direction: column-reverse;
+    position: relative;
+  }
+  .toolrail {
+    width: 100%;
+    flex-direction: row;
+    gap: 2px;
+    flex-shrink: 0;
+    height: 65px;
+    padding: 3px 6px max(3px, env(safe-area-inset-bottom));
+    border-right: 0;
+    border-top: 1px solid var(--line);
+  }
+  .rail-title,
+  .rail-bottom,
+  .toolrail kbd {
+    display: none;
+  }
+  .toolrail button {
+    min-width: 44px;
+    flex: 1;
+    padding: 5px 3px;
+    flex-direction: column;
+    gap: 2px;
+    justify-content: center;
+  }
+  .toolrail button span {
+    font-size: 8px;
+  }
+  .toolrail button.active {
+    box-shadow: inset 0 2px #537d65;
+  }
+  .toolrail b {
+    font-size: 20px;
+  }
+  .workspace {
+    min-height: 0;
+  }
+  .canvasbar {
+    height: 42px;
+    padding: 0 12px;
+    flex-shrink: 0;
+  }
+  #hint {
+    display: none;
+  }
+  .canvasbar strong {
+    font-size: 11px;
+  }
+  .history-actions button {
+    font-size: 18px;
+  }
+  .plan-badge {
+    top: 14px;
+    left: 13px;
+  }
+  .footer-tip {
+    display: none;
+  }
+  footer {
+    gap: 10px;
+    font-size: 8px;
+    height: 26px;
+    flex-shrink: 0;
+  }
+  .view-controls {
+    bottom: 15px;
+    left: 12px;
+    transform: none;
+  }
+  .view-controls button {
+    padding: 5px 8px;
+  }
+  .view-controls button span {
+    display: none;
+  }
+  .mobile-panel-button {
+    display: block;
+    position: absolute;
+    bottom: 15px;
+    right: 12px;
+    padding: 12px;
+    background: var(--ink);
+    color: white;
+    font-size: 10px;
+    border-radius: 7px;
+  }
+  .mobile-panel-button:hover {
+    background: #314d58;
+  }
+  #panel {
+    display: none;
+    position: absolute;
+    bottom: 65px;
+    right: 0;
+    top: 0;
+    width: min(320px, 90%);
+    z-index: 10;
+    box-shadow: -10px 0 50px #172b3625;
+    border-radius: 12px 0 0 0;
+  }
+  #panel.open {
+    display: block;
+  }
+  .panel-heading button {
+    display: block;
+    font-size: 20px;
+    margin: -8px 0;
+  }
+  #welcome h1 {
+    font-size: 27px;
+  }
+  #welcome p {
+    font-size: 11px;
+  }
+  #liveMeasure {
+    top: 45px;
+    font-size: 10px;
+  }
+  .mobile-only {
+    display: block;
+  }
+}
+@media print {
+  body {
+    background: white;
+  }
+  .app-header,
+  .filebar,
+  .toolrail,
+  #panel,
+  .canvasbar,
+  footer,
+  .plan-badge,
+  #welcome,
+  .view-controls,
+  .mobile-panel-button,
+  #toast,
+  #liveMeasure {
+    display: none !important;
+  }
+  main {
+    height: 95vh;
+  }
+  .workspace,
+  #stage {
+    width: 100%;
+    height: 100%;
+    background: white;
+  }
+  #drawing > rect {
+    display: none;
+  }
+  @page {
+    size: A4 landscape;
+    margin: 12mm;
+  }
+}
+.view-switch {
+  display: flex;
+  background: #e8eee8;
+  border-radius: 6px;
+  padding: 3px;
+  margin-right: 12px;
+}
+.view-switch button {
+  font-size: 10px;
+  width: 30px;
+  height: 23px;
+}
+.view-switch button.active {
+  background: #fff;
+  box-shadow: 0 1px 4px #182f3215;
+  color: #315f4a;
+}
+.brand:focus {
+  outline: 2px solid #dc764f;
+}
+@media (max-width: 700px) {
+  .view-switch {
+    margin-right: 5px;
+  }
+  .view-switch button {
+    width: 28px;
+    height: 22px;
+  }
+}
+/* Keep touch gestures on the drawing surface and show concise guidance on phones. */
+#drawing {
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+@media (max-width: 700px) {
+  .canvasbar > div:first-child {
+    min-width: 0;
+    flex: 1;
+  }
+  #hint {
+    display: block;
+    margin: 2px 6px 0 14px;
+    font-size: 8px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .history-actions {
+    flex-shrink: 0;
+  }
+}
+
+</style>
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="brand" href="#" aria-label="Grundriss Studio"
+        ><span class="brand-icon">⌑</span
+        ><span>GRUNDRISS<small>STUDIO / 2D CAD</small></span></a
+      >
+      <div class="project-title">
+        <input id="projectName" aria-label="Projektname" maxlength="100" /><span
+          id="saveState"
+          >Lokal gespeichert</span
+        >
+      </div>
+      <div class="header-actions">
+        <button id="help" class="quiet">? <span>Hilfe</span></button
+        ><button id="save" class="primary">
+          ↓ <span>Projekt sichern</span>
+        </button>
+      </div>
+    </header>
+    <div class="filebar">
+      <div class="file-actions">
+        <button id="new">＋ Neu</button><button id="example">◇ Beispiel</button
+        ><button id="open">↥ Import</button>
+        <details class="export-menu">
+          <summary>↗ Exportieren</summary>
+          <div>
+            <button id="dxf">DXF-Zeichnung</button
+            ><button id="svgExport">SVG mit Maßen</button
+            ><button id="print">Drucken / PDF</button>
+          </div>
+        </details>
+      </div>
+      <div class="drawing-settings">
+        <label
+          >Einheit
+          <select id="unit">
+            <option value="mm">mm</option>
+            <option value="cm">cm</option>
+            <option value="m">m</option>
+          </select></label
+        ><label
+          >Raster
+          <input
+            id="grid"
+            type="number"
+            min="0.001"
+            step="any"
+            aria-label="Rasterabstand" /></label
+        ><label><input type="checkbox" id="snap" checked /> Fang</label
+        ><label><input type="checkbox" id="ortho" /> 90°</label
+        ><label><input type="checkbox" id="showDims" checked /> Maße</label>
+      </div>
+    </div>
+    <main>
+      <nav class="toolrail" aria-label="Zeichenwerkzeuge">
+        <div class="rail-title">ZEICHNEN</div>
+        <button data-tool="select" title="Auswählen und verschieben (V)">
+          <b>↖</b><span>Auswahl</span><kbd>V</kbd></button
+        ><button data-tool="wall" title="Wand (W)">
+          <b>▰</b><span>Wand</span><kbd>W</kbd></button
+        ><button data-tool="line" title="Linie (L)">
+          <b>╱</b><span>Linie</span><kbd>L</kbd></button
+        ><button data-tool="rect" title="Rechteck (R)">
+          <b>▢</b><span>Rechteck</span><kbd>R</kbd></button
+        ><button data-tool="circle" title="Kreis (C)">
+          <b>◯</b><span>Kreis</span><kbd>C</kbd></button
+        ><button data-tool="dimension" title="Dauerhafte Bemaßung (D)">
+          <b>↔</b><span>Maßlinie</span><kbd>D</kbd></button
+        ><button data-tool="text" title="Text (T)">
+          <b>T</b><span>Text</span><kbd>T</kbd></button
+        ><button data-tool="pan" title="Ansicht verschieben (H)">
+          <b>✥</b><span>Ansicht</span><kbd>H</kbd>
+        </button>
+        <div class="rail-bottom">PRÄZISION<br />IM BROWSER</div>
+      </nav>
+      <section class="workspace">
+        <div class="canvasbar">
+          <div>
+            <span class="live-dot"></span><strong id="toolName">Auswahl</strong
+            ><span id="hint">Objekt auswählen und ziehen</span>
+          </div>
+          <div class="history-actions">
+            <div class="view-switch">
+              <button id="view2d" class="active">2D</button
+              ><button id="view3d">3D</button>
+            </div>
+            <button
+              id="undo"
+              title="Rückgängig (Strg+Z)"
+              aria-label="Rückgängig"
+            >
+              ↶</button
+            ><button
+              id="redo"
+              title="Wiederholen (Strg+Y)"
+              aria-label="Wiederholen"
+            >
+              ↷</button
+            ><button id="delete" title="Auswahl löschen" aria-label="Löschen">
+              ⌫
+            </button>
+          </div>
+        </div>
+        <div id="stage">
+          <svg
+            id="drawing"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-label="Interaktive Zeichenfläche"
+            role="application"
+            tabindex="0"
+          >
+            <defs>
+              <pattern id="gridPattern" patternUnits="userSpaceOnUse">
+                <path
+                  id="gridPath"
+                  fill="none"
+                  stroke="#dce3df"
+                  stroke-width="1"
+                />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#gridPattern)" />
+            <g id="scene"></g>
+          </svg>
+          <div class="plan-badge"><span>PLANANSICHT</span><b>2D</b></div>
+          <div id="welcome">
+            <h1>Aus einer Idee<br />wird ein Plan.</h1>
+            <p>
+              Zeichne präzise. Bearbeite Maße.<br />Gestalte deinen nächsten
+              Raum.
+            </p>
+            <button id="welcomeExample" class="primary">
+              Beispielgrundriss öffnen ↗</button
+            ><small>Oder links ein Werkzeug auswählen.</small>
+          </div>
+          <div id="liveMeasure"></div>
+          <div class="view-controls">
+            <button id="minus" aria-label="Verkleinern">−</button
+            ><span id="zoomLabel">100%</span
+            ><button id="plus" aria-label="Vergrößern">+</button><i></i
+            ><button id="fit" title="Alles anzeigen (F)">
+              ⊡ <span>Einpassen</span>
+            </button>
+          </div>
+          <button id="mobilePanel" class="mobile-panel-button">
+            ⚙ Eigenschaften
+          </button>
+          <div id="toast" role="status"></div>
+        </div>
+        <footer>
+          <span id="coords">X 0 · Y 0</span><span id="count">0 Objekte</span
+          ><span id="scaleBar"></span
+          ><span class="footer-tip"
+            >Maßangaben in cm · Zeichnung in Originalgröße</span
+          >
+        </footer>
+      </section>
+      <aside id="panel">
+        <div class="panel-heading">
+          <span>PROJEKT & EIGENSCHAFTEN</span
+          ><button id="closePanel" aria-label="Eigenschaften schließen">
+            ×
+          </button>
+        </div>
+        <section class="panel-section">
+          <div class="section-heading">
+            <h2>Eigenschaften</h2>
+            <span id="selectionCount">Keine Auswahl</span>
+          </div>
+          <div id="inspector"></div>
+          <div class="object-actions">
+            <button id="duplicate">⧉ Duplizieren</button
+            ><button id="rotate">↻ 90° drehen</button>
+          </div>
+        </section>
+        <section class="panel-section">
+          <div class="section-heading">
+            <h2>Ebenen</h2>
+            <button id="addLayer" title="Ebene hinzufügen">＋</button>
+          </div>
+          <p class="muted">Neue Objekte entstehen auf der aktiven Ebene.</p>
+          <div id="layers"></div>
+        </section>
+        <section class="panel-section">
+          <h2>Zeichnungsübersicht</h2>
+          <div class="stats">
+            <div><strong id="totalObjects">0</strong><span>Objekte</span></div>
+            <div>
+              <strong id="totalArea">0</strong><span>Rechteckfläche</span>
+            </div>
+          </div>
+          <p class="muted">
+            Flächen werden einzeln addiert; Überlappungen werden nicht
+            abgezogen.
+          </p>
+        </section>
+        <div class="local-note">
+          <span>●</span> Privat auf diesem Gerät
+          <p>
+            Automatische Sicherung im Browser. Für ein Backup das Projekt
+            herunterladen.
+          </p>
+        </div>
+      </aside>
+    </main>
+    <input type="file" id="file" accept=".json,.dxf" hidden />
+    <dialog id="dialog">
+      <div class="dialog-top">
+        <h2 id="dialogTitle">Grundriss Studio</h2>
+        <button id="dialogClose" aria-label="Schließen">×</button>
+      </div>
+      <div id="dialogBody"></div>
+    </dialog>
+    <script>
+/* Shared geometry and interoperable file formats. All model coordinates are millimetres. */
+(function (root) {
+  "use strict";
+  const units = { mm: 1, cm: 10, m: 1000 };
+  const length = (o) => Math.hypot(o.x2 - o.x, o.y2 - o.y);
+  const escape = (s) =>
+    String(s).replace(
+      /[&<>"']/g,
+      (c) =>
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&apos;",
+        })[c],
+    );
+  const uid = () =>
+    globalThis.crypto?.randomUUID?.() ||
+    Math.random().toString(36).slice(2) + Date.now().toString(36);
+  function bounds(o) {
+    if (o.type === "text") {
+      const size = o.size || 150;
+      return {
+        x: o.x,
+        y: o.y - size,
+        x2: o.x + String(o.text || "").length * size * 0.65,
+        y2: o.y + size * 0.2,
+      };
+    }
+    if (o.type === "dimension") {
+      const len = length(o) || 1,
+        off = o.offset ?? 300,
+        dx = (-(o.y2 - o.y) / len) * off,
+        dy = ((o.x2 - o.x) / len) * off;
+      return {
+        x: Math.min(o.x, o.x2, o.x + dx, o.x2 + dx),
+        y: Math.min(o.y, o.y2, o.y + dy, o.y2 + dy),
+        x2: Math.max(o.x, o.x2, o.x + dx, o.x2 + dx),
+        y2: Math.max(o.y, o.y2, o.y + dy, o.y2 + dy),
+      };
+    }
+    const r =
+      o.type === "circle"
+        ? length(o)
+        : o.type === "wall"
+          ? (o.thickness || 150) / 2
+          : 0;
+    return o.type === "circle"
+      ? { x: o.x - r, y: o.y - r, x2: o.x + r, y2: o.y + r }
+      : {
+          x: Math.min(o.x, o.x2) - r,
+          y: Math.min(o.y, o.y2) - r,
+          x2: Math.max(o.x, o.x2) + r,
+          y2: Math.max(o.y, o.y2) + r,
+        };
+  }
+  function sceneBounds(objects) {
+    if (!objects.length) return { x: 0, y: 0, x2: 6000, y2: 4000 };
+    return objects.reduce(
+      (a, o) => {
+        const b = bounds(o);
+        return {
+          x: Math.min(a.x, b.x),
+          y: Math.min(a.y, b.y),
+          x2: Math.max(a.x2, b.x2),
+          y2: Math.max(a.y2, b.y2),
+        };
+      },
+      { x: Infinity, y: Infinity, x2: -Infinity, y2: -Infinity },
+    );
+  }
+  function segmentDistance(p, a, b) {
+    const dx = b.x - a.x,
+      dy = b.y - a.y,
+      t = Math.max(
+        0,
+        Math.min(
+          1,
+          ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy || 1),
+        ),
+      );
+    return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
+  }
+  function segments(o) {
+    if (o.type === "rect")
+      return [
+        { ...o, type: "line", y2: o.y },
+        { ...o, type: "line", x: o.x2 },
+        { ...o, type: "line", y: o.y2 },
+        { ...o, type: "line", x2: o.x },
+      ];
+    if (o.type === "wall") {
+      const l = length(o) || 1,
+        dx = ((-(o.y2 - o.y) / l) * o.thickness) / 2,
+        dy = (((o.x2 - o.x) / l) * o.thickness) / 2;
+      const pts = [
+        { x: o.x + dx, y: o.y + dy },
+        { x: o.x2 + dx, y: o.y2 + dy },
+        { x: o.x2 - dx, y: o.y2 - dy },
+        { x: o.x - dx, y: o.y - dy },
+      ];
+      return pts.map((p, i) => ({
+        ...o,
+        type: "line",
+        ...p,
+        x2: pts[(i + 1) % 4].x,
+        y2: pts[(i + 1) % 4].y,
+      }));
+    }
+    return [o];
+  }
+  function validObject(o) {
+    return (
+      o &&
+      ["line", "rect", "circle", "wall", "dimension", "text"].includes(
+        o.type,
+      ) &&
+      ["x", "y", "x2", "y2"].every(
+        (k) => Number.isFinite(o[k]) && Math.abs(o[k]) <= 1e9,
+      ) &&
+      (!("thickness" in o) ||
+        (Number.isFinite(o.thickness) &&
+          o.thickness > 0 &&
+          o.thickness <= 1e6)) &&
+      (!("offset" in o) ||
+        (Number.isFinite(o.offset) && Math.abs(o.offset) <= 1e7)) &&
+      (!("height" in o) ||
+        (Number.isFinite(o.height) && o.height >= 0 && o.height <= 1e7)) &&
+      (!("size" in o) ||
+        (Number.isFinite(o.size) && o.size > 0 && o.size <= 1e6))
+    );
+  }
+  function validateProject(d) {
+    if (
+      d?.format !== "grundriss-cad" ||
+      !Array.isArray(d.objects) ||
+      d.objects.length > 20000
+    )
+      throw Error("Ungültiges Projekt (maximal 20.000 Objekte).");
+    if (d.version === 1) {
+      return {
+        format: d.format,
+        version: 2,
+        name: "Importiertes Projekt",
+        unit: "cm",
+        grid: 100,
+        layers: [
+          {
+            id: "base",
+            name: "Zeichnung",
+            color: "#355e55",
+            visible: true,
+            locked: false,
+          },
+        ],
+        activeLayer: "base",
+        objects: d.objects.map((o) => {
+          const n = {
+            id: uid(),
+            type: o.type,
+            x: o.x1 * 10,
+            y: o.y1 * 10,
+            x2: o.x2 * 10,
+            y2: o.y2 * 10,
+            layer: "base",
+          };
+          if (!validObject(n)) throw Error("Ungültige Koordinaten.");
+          return n;
+        }),
+      };
+    }
+    if (
+      d.version !== 2 ||
+      !units[d.unit] ||
+      !Array.isArray(d.layers) ||
+      !d.layers.length ||
+      d.layers.length > 100 ||
+      !Number.isFinite(d.grid) ||
+      d.grid <= 0 ||
+      d.grid > 1e8
+    )
+      throw Error("Projektversion oder Einstellungen ungültig.");
+    const layers = d.layers.map((l) => ({
+      id: String(l.id),
+      name: String(l.name).slice(0, 60),
+      color: /^#[0-9a-f]{6}$/i.test(l.color) ? l.color : "#355e55",
+      visible: l.visible !== false,
+      locked: !!l.locked,
+    }));
+    if (new Set(layers.map((l) => l.id)).size !== layers.length)
+      throw Error("Doppelte Ebenen.");
+    const ids = new Set();
+    const objects = d.objects.map((o) => {
+      if (!validObject(o)) throw Error("Ungültiges Objekt.");
+      let id = typeof o.id === "string" ? o.id : uid();
+      if (ids.has(id)) id = uid();
+      ids.add(id);
+      return {
+        ...o,
+        id,
+        layer: layers.some((l) => l.id === o.layer) ? o.layer : layers[0].id,
+        text: String(o.text || "").slice(0, 1000),
+      };
+    });
+    return {
+      ...d,
+      name: String(d.name || "Mein Grundriss").slice(0, 100),
+      layers,
+      objects,
+      activeLayer: layers.some((l) => l.id === d.activeLayer)
+        ? d.activeLayer
+        : layers[0].id,
+    };
+  }
+  function readDXF(text, fallback = 10) {
+    if (text.startsWith("AutoCAD Binary"))
+      throw Error(
+        "Binäres DXF wird nicht unterstützt. Bitte ASCII-DXF exportieren.",
+      );
+    const lines = text.replace(/\r/g, "").split("\n"),
+      pairs = [];
+    for (let i = 0; i + 1 < lines.length; i += 2)
+      pairs.push([lines[i].trim(), lines[i + 1].trim()]);
+    let factor = fallback,
+      unitKnown = false;
+    const ix = pairs.findIndex((p) => p[0] === "9" && p[1] === "$INSUNITS");
+    if (ix >= 0) {
+      const code = +pairs[ix + 1]?.[1];
+      if ({ 1: 25.4, 2: 304.8, 4: 1, 5: 10, 6: 1000 }[code]) {
+        factor = { 1: 25.4, 2: 304.8, 4: 1, 5: 10, 6: 1000 }[code];
+        unitKnown = true;
+      }
+    }
+    let active = false,
+      entity = null,
+      objects = [],
+      skipped = {};
+    const warn = (t) => (skipped[t] = (skipped[t] || 0) + 1);
+    function finish() {
+      if (!entity) return;
+      const { type, values: v, raw } = entity;
+      const n = (k) => Number(v[k]?.[0]),
+        has = (...ks) => ks.every((k) => v[k] && Number.isFinite(n(k)));
+      const base = { id: uid(), layer: (v["8"] || ["Import"])[0] };
+      const add = (type, x, y, x2, y2, extra = {}) =>
+        objects.push({
+          ...base,
+          id: uid(),
+          type,
+          x: x * factor,
+          y: -y * factor,
+          x2: x2 * factor,
+          y2: -y2 * factor,
+          ...extra,
+        });
+      if (type === "LINE" && has("10", "20", "11", "21"))
+        add("line", n("10"), n("20"), n("11"), n("21"));
+      else if (type === "CIRCLE" && has("10", "20", "40") && n("40") > 0)
+        add("circle", n("10"), n("20"), n("10") + n("40"), n("20"));
+      else if (type === "TEXT" && has("10", "20", "40"))
+        add("text", n("10"), n("20"), n("10"), n("20"), {
+          text: (v["1"] || [""])[0],
+          size: Math.abs(n("40") * factor),
+        });
+      else if (type === "LWPOLYLINE") {
+        if (
+          (v["42"] || []).some((x) => +x !== 0) ||
+          (v["210"] && n("210") !== 0) ||
+          (v["220"] && n("220") !== 0) ||
+          (v["230"] && n("230") !== 1)
+        ) {
+          warn("LWPOLYLINE mit Bögen/Extrusion");
+        } else {
+          const pts = [];
+          for (const [k, val] of raw) {
+            if (k === "10") pts.push({ x: +val });
+            if (k === "20" && pts.length) pts[pts.length - 1].y = +val;
+          }
+          if (pts.some((p) => !Number.isFinite(p.y)))
+            warn("LWPOLYLINE ungültig");
+          else {
+            for (let i = 1; i < pts.length; i++)
+              add("line", pts[i - 1].x, pts[i - 1].y, pts[i].x, pts[i].y);
+            if (n("70") & 1 && pts.length > 1)
+              add("line", pts.at(-1).x, pts.at(-1).y, pts[0].x, pts[0].y);
+          }
+        }
+      } else warn(type);
+      entity = null;
+    }
+    for (let i = 0; i < pairs.length; i++) {
+      const [k, v] = pairs[i];
+      if (k === "0" && v === "SECTION") {
+        active = pairs[i + 1]?.[0] === "2" && pairs[i + 1]?.[1] === "ENTITIES";
+        continue;
+      }
+      if (!active) continue;
+      if (k === "0") {
+        finish();
+        if (v === "ENDSEC" || v === "EOF") {
+          active = false;
+          continue;
+        }
+        entity = { type: v, values: {}, raw: [] };
+      } else if (entity) {
+        (entity.values[k] ??= []).push(v);
+        entity.raw.push([k, v]);
+      }
+    }
+    finish();
+    if (objects.length > 20000)
+      throw Error(
+        "Mehr als 20.000 Objekte; bitte einen kleineren Ausschnitt importieren.",
+      );
+    if (objects.some((o) => !validObject(o)))
+      throw Error("DXF enthält ungültige Koordinaten.");
+    return { objects, skipped, unitKnown };
+  }
+  function writeDXF(project) {
+    let s =
+      "0\nSECTION\n2\nHEADER\n9\n$ACADVER\n1\nAC1015\n9\n$INSUNITS\n70\n4\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n";
+    for (const o of project.objects.flatMap(segments)) {
+      const layer = (
+        project.layers.find((l) => l.id === o.layer)?.name || "0"
+      ).replace(/[\r\n<>/\\":;?*|=]/g, "_");
+      if (o.type === "dimension") continue;
+      s += `0\n${o.type === "circle" ? "CIRCLE" : o.type === "text" ? "TEXT" : "LINE"}\n8\n${layer}\n10\n${o.x}\n20\n${-o.y}\n`;
+      if (o.type === "circle") s += `40\n${length(o)}\n`;
+      else if (o.type === "text")
+        s += `40\n${o.size || 150}\n1\n${String(o.text).replace(/[\r\n]/g, " ")}\n`;
+      else s += `11\n${o.x2}\n21\n${-o.y2}\n`;
+    }
+    return s + "0\nENDSEC\n0\nEOF\n";
+  }
+  const API = {
+    units,
+    length,
+    escape,
+    uid,
+    bounds,
+    sceneBounds,
+    segmentDistance,
+    segments,
+    validObject,
+    validateProject,
+    readDXF,
+    writeDXF,
+  };
+  root.CAD = API;
+  if (typeof module !== "undefined") module.exports = API;
+})(globalThis);
+
+</script>
+    <script>
+/* Orthographic 3D preview, projected from actual millimetre geometry. */
+(function (root) {
+  "use strict";
+  function mesh(objects) {
+    const faces = [];
+    function prism(points, height, color) {
+      if (height <= 0) return;
+      const bottom = points.map((p) => [p[0], p[1], 0]),
+        top = points.map((p) => [p[0], p[1], height]);
+      faces.push({ points: top, color, shade: 1.12 });
+      for (let i = 0; i < points.length; i++)
+        faces.push({
+          points: [
+            bottom[i],
+            bottom[(i + 1) % points.length],
+            top[(i + 1) % points.length],
+            top[i],
+          ],
+          color,
+          shade: 0.7 + (i % 3) * 0.12,
+        });
+    }
+    for (const o of objects) {
+      const h = o.height ?? (o.type === "wall" ? 2600 : 700),
+        color = o.color || "#718d80";
+      if (o.type === "wall") {
+        const len = Math.hypot(o.x2 - o.x, o.y2 - o.y) || 1,
+          dx = ((-(o.y2 - o.y) / len) * (o.thickness || 150)) / 2,
+          dy = (((o.x2 - o.x) / len) * (o.thickness || 150)) / 2;
+        prism(
+          [
+            [o.x + dx, o.y + dy],
+            [o.x2 + dx, o.y2 + dy],
+            [o.x2 - dx, o.y2 - dy],
+            [o.x - dx, o.y - dy],
+          ],
+          h,
+          color,
+        );
+      } else if (o.type === "rect")
+        prism(
+          [
+            [o.x, o.y],
+            [o.x2, o.y],
+            [o.x2, o.y2],
+            [o.x, o.y2],
+          ],
+          h,
+          color,
+        );
+      else if (o.type === "circle") {
+        const r = Math.hypot(o.x2 - o.x, o.y2 - o.y);
+        prism(
+          Array.from({ length: 32 }, (_, i) => [
+            o.x + Math.cos((i * Math.PI) / 16) * r,
+            o.y + Math.sin((i * Math.PI) / 16) * r,
+          ]),
+          h,
+          color,
+        );
+      }
+    }
+    return faces;
+  }
+  function project(p, camera) {
+    const x = p[0] - camera.cx,
+      y = p[1] - camera.cy,
+      z = p[2] - camera.cz,
+      cos = Math.cos(camera.yaw),
+      sin = Math.sin(camera.yaw),
+      rx = x * cos - y * sin,
+      ry = x * sin + y * cos;
+    return {
+      x: camera.width / 2 + rx * camera.scale,
+      y:
+        camera.height / 2 +
+        (ry * Math.sin(camera.pitch) - z * Math.cos(camera.pitch)) *
+          camera.scale,
+      depth: ry * Math.cos(camera.pitch) + z * Math.sin(camera.pitch),
+    };
+  }
+  function shade(hex, f) {
+    return (
+      "#" +
+      [1, 3, 5]
+        .map((i) =>
+          Math.max(
+            0,
+            Math.min(255, Math.round(parseInt(hex.slice(i, i + 2), 16) * f)),
+          )
+            .toString(16)
+            .padStart(2, "0"),
+        )
+        .join("")
+    );
+  }
+  function svg(objects, bounds, camera) {
+    const floor = {
+      points: [
+        [bounds.x - 500, bounds.y - 500, -2],
+        [bounds.x2 + 500, bounds.y - 500, -2],
+        [bounds.x2 + 500, bounds.y2 + 500, -2],
+        [bounds.x - 500, bounds.y2 + 500, -2],
+      ],
+      color: "#dce4d8",
+      shade: 1,
+    };
+    const faces = mesh(objects);
+    const projected = faces
+      .map((f) => ({ ...f, points: f.points.map((p) => project(p, camera)) }))
+      .sort(
+        (a, b) =>
+          a.points.reduce((s, p) => s + p.depth, 0) / a.points.length -
+          b.points.reduce((s, p) => s + p.depth, 0) / b.points.length,
+      );
+    function polygon(f) {
+      return `<polygon points="${f.points.map((p) => p.x.toFixed(2) + "," + p.y.toFixed(2)).join(" ")}" fill="${shade(f.color, f.shade)}" stroke="#ffffff" stroke-opacity=".22" stroke-width=".6" stroke-linejoin="round"/>`;
+    }
+    return (
+      polygon({
+        ...floor,
+        points: floor.points.map((p) => project(p, camera)),
+      }) + projected.map(polygon).join("")
+    );
+  }
+  const api = { mesh, project, svg };
+  root.CAD3D = api;
+  if (typeof module !== "undefined") module.exports = api;
+})(globalThis);
+
+</script>
+    <script>
+"use strict";
+const $ = (s) => document.querySelector(s),
+  C = CAD,
+  E = C.escape,
+  NS = "http://www.w3.org/2000/svg";
+const canvas = $("#drawing"),
+  scene = $("#scene"),
+  stage = $("#stage");
+const tools = {
+  select: [
+    "Auswahl",
+    "Objekt wählen und ziehen · Umschalt für Mehrfachauswahl",
+  ],
+  wall: ["Wand", "Drücken, ziehen, loslassen"],
+  line: ["Linie", "Drücken, ziehen, loslassen"],
+  rect: ["Rechteck", "Von einer Ecke zur anderen ziehen"],
+  circle: ["Kreis", "Vom Mittelpunkt nach außen ziehen"],
+  dimension: ["Maßlinie", "Zwischen zwei Messpunkten ziehen"],
+  text: ["Beschriftung", "Position antippen und Text eingeben"],
+  pan: ["Ansicht", "Ziehen zum Verschieben · Zweifinger-Zoom auf dem Handy"],
+};
+function blank() {
+  return {
+    format: "grundriss-cad",
+    version: 2,
+    name: "Mein Grundriss",
+    unit: "cm",
+    grid: 100,
+    activeLayer: "walls",
+    layers: [
+      {
+        id: "walls",
+        name: "Wände",
+        color: "#354d50",
+        visible: true,
+        locked: false,
+      },
+      {
+        id: "furniture",
+        name: "Einrichtung",
+        color: "#ac815e",
+        visible: true,
+        locked: false,
+      },
+      {
+        id: "notes",
+        name: "Maße & Notizen",
+        color: "#66816b",
+        visible: true,
+        locked: false,
+      },
+    ],
+    objects: [],
+  };
+}
+let is3d = false,
+  camera3d = { yaw: -0.65, pitch: 0.65, zoom: 1 };
+let project = blank(),
+  selection = new Set(),
+  tool = "select",
+  start = null,
+  cursor = null,
+  drag = null,
+  view = { s: 0.1, x: 100, y: 100 },
+  history = [],
+  historyIndex = -1,
+  pointers = new Map(),
+  pinch = null,
+  space = false,
+  storageOK = true;
+const snapshot = () => JSON.stringify(project),
+  layer = (id) => project.layers.find((l) => l.id === id),
+  unitFactor = () => C.units[project.unit];
+const fmt = (n) =>
+  new Intl.NumberFormat("de-DE", { maximumFractionDigits: 2 }).format(
+    n / unitFactor(),
+  ) +
+  " " +
+  project.unit;
+const num = (n) => +(n / unitFactor()).toFixed(5);
+const areaFmt = (n) =>
+  new Intl.NumberFormat("de-DE", { maximumFractionDigits: 2 }).format(n / 1e6) +
+  " m²";
+const visible = () =>
+  project.objects.filter((o) => layer(o.layer)?.visible !== false);
+const editable = (o) =>
+  layer(o.layer)?.visible !== false && !layer(o.layer)?.locked;
+function toast(text) {
+  $("#toast").textContent = text;
+  $("#toast").style.display = "block";
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => ($("#toast").style.display = "none"), 4500);
+}
+function persist() {
+  try {
+    localStorage.setItem("grundriss-studio-v2", snapshot());
+    storageOK = true;
+  } catch (e) {
+    storageOK = false;
+  }
+  $("#saveState").textContent = storageOK
+    ? "● Lokal gespeichert"
+    : "Sicherung nicht verfügbar · Projekt herunterladen";
+}
+function commit() {
+  history = history.slice(0, historyIndex + 1);
+  history.push(snapshot());
+  if (history.length > 80) history.shift();
+  historyIndex = history.length - 1;
+  persist();
+  refresh();
+}
+function undo(delta) {
+  abortInteraction();
+  if (historyIndex + delta < 0 || historyIndex + delta >= history.length)
+    return;
+  historyIndex += delta;
+  project = JSON.parse(history[historyIndex]);
+  selection.clear();
+  start = null;
+  persist();
+  refresh();
+}
+function refresh() {
+  $("#projectName").value = project.name;
+  $("#unit").value = project.unit;
+  $("#grid").value = num(project.grid);
+  $("#undo").disabled = historyIndex <= 0;
+  $("#redo").disabled = historyIndex >= history.length - 1;
+  $("#delete").disabled = !selection.size;
+  $("#duplicate").disabled = !selection.size;
+  $("#rotate").disabled = !selection.size;
+  $("#totalObjects").textContent = project.objects.length;
+  $("#totalArea").textContent = areaFmt(
+    project.objects
+      .filter((o) => o.type === "rect")
+      .reduce((s, o) => s + Math.abs((o.x2 - o.x) * (o.y2 - o.y)), 0),
+  );
+  $(".footer-tip").textContent =
+    "Maßangaben in " + project.unit + " · Modell in Originalgröße";
+  renderLayers();
+  inspector();
+  draw();
+}
+function setTool(t) {
+  abortInteraction();
+  if (is3d) switchView(false);
+  tool = t;
+  start = null;
+  cursor = null;
+  drag = null;
+  document
+    .querySelectorAll("[data-tool]")
+    .forEach((b) => b.classList.toggle("active", b.dataset.tool === t));
+  $("#toolName").textContent = tools[t][0];
+  $("#hint").textContent = tools[t][1];
+  canvas.style.cursor =
+    t === "pan" ? "grab" : t === "select" ? "default" : "crosshair";
+  draw();
+}
+function dimensionSVG(a, b, offset, color = "#77917b", label = null) {
+  const len = Math.hypot(b.x - a.x, b.y - a.y);
+  if (len < 0.001) return "";
+  const nx = -(b.y - a.y) / len,
+    ny = (b.x - a.x) / len,
+    ax = a.x + nx * offset,
+    ay = a.y + ny * offset,
+    bx = b.x + nx * offset,
+    by = b.y + ny * offset,
+    t = 4 / view.s,
+    font = 10 / view.s;
+  return `<g stroke="${color}" stroke-width="${0.8 / view.s}" fill="none"><path d="M ${a.x} ${a.y} L ${ax + nx * t} ${ay + ny * t} M ${b.x} ${b.y} L ${bx + nx * t} ${by + ny * t} M ${ax} ${ay} L ${bx} ${by}"/><path d="M ${ax - t} ${ay + t} l ${2 * t} ${-2 * t} M ${bx - t} ${by + t} l ${2 * t} ${-2 * t}"/></g><text x="${(ax + bx) / 2}" y="${(ay + by) / 2 - 5 / view.s}" text-anchor="middle" font-size="${font}" font-family="system-ui,sans-serif" fill="${color}" stroke="#f5f7f2" stroke-width="${3 / view.s}" paint-order="stroke">${E(label || fmt(len))}</text>`;
+}
+function objectSVG(o, preview = false, exporting = false) {
+  const chosen = !exporting && selection.has(o.id),
+    color = chosen ? "#d57751" : layer(o.layer)?.color || "#345e53",
+    w = (chosen ? 2 : 1.4) / view.s;
+  let s = "";
+  const attrs = `stroke="${color}" stroke-width="${w}" fill="none"`;
+  if (o.type === "line" || o.type === "wall")
+    s = `<line x1="${o.x}" y1="${o.y}" x2="${o.x2}" y2="${o.y2}" ${attrs} ${o.type === "wall" ? `style="stroke-width:${o.thickness || 150}" stroke-linecap="butt"` : ""}/>`;
+  if (o.type === "rect")
+    s = `<rect x="${Math.min(o.x, o.x2)}" y="${Math.min(o.y, o.y2)}" width="${Math.abs(o.x2 - o.x)}" height="${Math.abs(o.y2 - o.y)}" stroke="${color}" stroke-width="${w}" fill="${color}" fill-opacity=".035"/>`;
+  if (o.type === "circle")
+    s = `<circle cx="${o.x}" cy="${o.y}" r="${C.length(o)}" ${attrs}/>`;
+  if (o.type === "text")
+    s = `<text x="${o.x}" y="${o.y}" font-size="${o.size || 150}" fill="${color}" font-family="system-ui,sans-serif">${E(o.text || "Text")}</text>`;
+  if (o.type === "dimension")
+    s = dimensionSVG(
+      { x: o.x, y: o.y },
+      { x: o.x2, y: o.y2 },
+      o.offset ?? 300,
+      color,
+    );
+  if (
+    (!exporting || $("#showDims").checked) &&
+    $("#showDims").checked &&
+    o.type !== "dimension" &&
+    o.type !== "text"
+  ) {
+    if (o.type === "rect") {
+      let a = { x: Math.min(o.x, o.x2), y: Math.min(o.y, o.y2) },
+        b = { x: Math.max(o.x, o.x2), y: Math.max(o.y, o.y2) };
+      s += dimensionSVG(a, { x: b.x, y: a.y }, -20 / view.s);
+      s += dimensionSVG(a, { x: a.x, y: b.y }, 22 / view.s);
+      if (
+        Math.abs(o.x2 - o.x) * view.s > 65 &&
+        Math.abs(o.y2 - o.y) * view.s > 30
+      )
+        s += `<text x="${(o.x + o.x2) / 2}" y="${(o.y + o.y2) / 2}" font-size="${11 / view.s}" text-anchor="middle" fill="#9aa98e">${areaFmt(Math.abs((o.x2 - o.x) * (o.y2 - o.y)))}</text>`;
+    } else if (o.type === "circle") {
+      s += dimensionSVG(
+        { x: o.x, y: o.y },
+        { x: o.x + C.length(o), y: o.y },
+        0,
+        "#77917b",
+        "R " + fmt(C.length(o)),
+      );
+    } else
+      s += dimensionSVG(
+        { x: o.x, y: o.y },
+        { x: o.x2, y: o.y2 },
+        -((o.type === "wall" ? (o.thickness || 150) / 2 : 0) + 18 / view.s),
+      );
+  }
+  if (chosen) {
+    for (const p of [
+      { x: o.x, y: o.y },
+      { x: o.x2, y: o.y2 },
+    ])
+      s += `<rect x="${p.x - 3 / view.s}" y="${p.y - 3 / view.s}" width="${6 / view.s}" height="${6 / view.s}" fill="white" stroke="#d57751" stroke-width="${1 / view.s}"/>`;
+  }
+  return `<g ${preview ? 'opacity=".55" stroke-dasharray="' + 5 / view.s + " " + 3 / view.s + '"' : ""}>${s}</g>`;
+}
+function candidate(p) {
+  return {
+    id: "preview",
+    type: tool,
+    x: start.x,
+    y: start.y,
+    x2: p.x,
+    y2: p.y,
+    layer: project.activeLayer,
+    thickness: 150,
+    offset: 300,
+  };
+}
+function draw() {
+  if (is3d) {
+    draw3D();
+    return;
+  }
+  const s = view.s;
+  let step = project.grid * s;
+  while (step < 12) step *= 10;
+  while (step > 150) step /= 10;
+  $("#gridPattern").setAttribute("width", step);
+  $("#gridPattern").setAttribute("height", step);
+  $("#gridPattern").setAttribute("x", view.x % step);
+  $("#gridPattern").setAttribute("y", view.y % step);
+  $("#gridPath").setAttribute("d", `M ${step} 0 L 0 0 0 ${step}`);
+  scene.setAttribute("transform", `translate(${view.x} ${view.y}) scale(${s})`);
+  let content = visible()
+    .map((o) => objectSVG(o))
+    .join("");
+  if (start && cursor) {
+    content += objectSVG(candidate(cursor), true);
+    content += [start, cursor]
+      .map(
+        (p) =>
+          `<circle cx="${p.x}" cy="${p.y}" r="${5 / view.s}" fill="#fff" stroke="#dc764f" stroke-width="${1.5 / view.s}" pointer-events="none"/>`,
+      )
+      .join("");
+    $("#liveMeasure").textContent =
+      tool === "rect"
+        ? fmt(Math.abs(cursor.x - start.x)) +
+          " × " +
+          fmt(Math.abs(cursor.y - start.y))
+        : fmt(Math.hypot(cursor.x - start.x, cursor.y - start.y));
+    $("#liveMeasure").style.display = "block";
+  } else $("#liveMeasure").style.display = "none";
+  scene.innerHTML = content;
+  $("#welcome").hidden = !!project.objects.length || !!start;
+  $("#zoomLabel").textContent = Math.round(s * 1000) + "%";
+  $("#count").textContent =
+    project.objects.length +
+    " Objekte" +
+    (selection.size ? " · " + selection.size + " gewählt" : "");
+  $("#scaleBar").textContent = "Raster " + fmt(project.grid);
+}
+function local(e) {
+  const r = canvas.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+function world(p) {
+  return { x: (p.x - view.x) / view.s, y: (p.y - view.y) / view.s };
+}
+function snapped(p, constrain = false) {
+  let q = { ...p };
+  if ($("#snap").checked) {
+    let nearest = null,
+      best = 10 / view.s;
+    for (const o of visible()) {
+      if (selection.has(o.id) && drag?.kind === "move") continue;
+      for (const t of [
+        { x: o.x, y: o.y },
+        { x: o.x2, y: o.y2 },
+      ]) {
+        const d = Math.hypot(p.x - t.x, p.y - t.y);
+        if (d < best) {
+          best = d;
+          nearest = t;
+        }
+      }
+    }
+    q = nearest || {
+      x: Math.round(q.x / project.grid) * project.grid,
+      y: Math.round(q.y / project.grid) * project.grid,
+    };
+  }
+  if (
+    start &&
+    (constrain || $("#ortho").checked) &&
+    ["line", "wall", "dimension"].includes(tool)
+  ) {
+    if (Math.abs(q.x - start.x) > Math.abs(q.y - start.y)) q.y = start.y;
+    else q.x = start.x;
+  }
+  return q;
+}
+function hit(p) {
+  const tol = 10 / view.s;
+  for (const o of [...visible()].reverse()) {
+    if (!editable(o)) continue;
+    let yes = false;
+    const a = { x: o.x, y: o.y },
+      b = { x: o.x2, y: o.y2 };
+    if (o.type === "circle")
+      yes = Math.abs(Math.hypot(p.x - o.x, p.y - o.y) - C.length(o)) < tol;
+    else if (o.type === "rect")
+      yes = C.segments(o).some(
+        (seg) =>
+          C.segmentDistance(
+            p,
+            { x: seg.x, y: seg.y },
+            { x: seg.x2, y: seg.y2 },
+          ) < tol,
+      );
+    else if (o.type === "text") {
+      const size = o.size || 150;
+      yes =
+        p.x > o.x - tol &&
+        p.x < o.x + String(o.text).length * size * 0.65 + tol &&
+        p.y < o.y + tol &&
+        p.y > o.y - size - tol;
+    } else if (o.type === "dimension") {
+      const l = C.length(o) || 1,
+        nx = -(o.y2 - o.y) / l,
+        ny = (o.x2 - o.x) / l,
+        off = o.offset ?? 300;
+      yes =
+        C.segmentDistance(
+          p,
+          { x: o.x + nx * off, y: o.y + ny * off },
+          { x: o.x2 + nx * off, y: o.y2 + ny * off },
+        ) < tol;
+    } else
+      yes =
+        C.segmentDistance(p, a, b) <
+        tol + (o.type === "wall" ? (o.thickness || 150) / 2 : 0);
+    if (yes) return o;
+  }
+  return null;
+}
+function zoom(f, p = { x: stage.clientWidth / 2, y: stage.clientHeight / 2 }) {
+  if (is3d) {
+    camera3d.zoom = Math.max(0.2, Math.min(5, camera3d.zoom * f));
+    draw();
+    return;
+  }
+  const next = Math.max(0.002, Math.min(5, view.s * f));
+  view.x = p.x - ((p.x - view.x) * next) / view.s;
+  view.y = p.y - ((p.y - view.y) * next) / view.s;
+  view.s = next;
+  draw();
+}
+function fit() {
+  if (is3d) {
+    camera3d.zoom = 1;
+    draw();
+    return;
+  }
+  const b = C.sceneBounds(visible()),
+    pad = 80;
+  view.s = Math.min(
+    2,
+    Math.max(
+      0.002,
+      Math.min(
+        Math.max(100, stage.clientWidth - pad * 2) / Math.max(b.x2 - b.x, 100),
+        Math.max(100, stage.clientHeight - pad * 2) / Math.max(b.y2 - b.y, 100),
+      ),
+    ),
+  );
+  view.x = stage.clientWidth / 2 - ((b.x + b.x2) / 2) * view.s;
+  view.y = stage.clientHeight / 2 - ((b.y + b.y2) / 2) * view.s;
+  draw();
+}
+// A gesture owns its preview until release. A second finger cancels the
+// preview before switching to navigation, so zoom never creates geometry.
+function abortInteraction() {
+  if (drag?.originals) {
+    for (const o of project.objects) {
+      const original = drag.originals.get(o.id);
+      if (original) Object.assign(o, original);
+    }
+  }
+  start = null;
+  cursor = null;
+  drag = null;
+}
+function beginPinch() {
+  abortInteraction();
+  const ids = [...pointers.keys()].slice(0, 2);
+  const [a, b] = ids.map((id) => pointers.get(id));
+  pinch = {
+    ids,
+    distance: Math.hypot(a.x - b.x, a.y - b.y),
+    mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
+    view: { ...view },
+    zoom3d: camera3d.zoom,
+  };
+  refresh();
+}
+function moveSelection(p) {
+  const q = snapped(world(p));
+  const dx = q.x - drag.p.x,
+    dy = q.y - drag.p.y;
+  for (const o of project.objects) {
+    const original = drag.originals.get(o.id);
+    if (original)
+      Object.assign(o, {
+        x: original.x + dx,
+        y: original.y + dy,
+        x2: original.x2 + dx,
+        y2: original.y2 + dy,
+      });
+  }
+  drag.changed = dx !== 0 || dy !== 0;
+}
+canvas.addEventListener("pointerdown", (e) => {
+  if (e.button !== 0 && e.button !== 1) return;
+  e.preventDefault();
+  canvas.focus({ preventScroll: true });
+  canvas.setPointerCapture(e.pointerId);
+  const p = local(e);
+  pointers.set(e.pointerId, p);
+  if (pointers.size === 2) {
+    beginPinch();
+    return;
+  }
+  if (pointers.size > 2 || pinch) return;
+  if (is3d) {
+    drag = {
+      kind: "orbit",
+      pointerId: e.pointerId,
+      p,
+      yaw: camera3d.yaw,
+      pitch: camera3d.pitch,
+    };
+    return;
+  }
+  if (tool === "pan" || space || e.button === 1) {
+    drag = { kind: "pan", pointerId: e.pointerId, p, view: { ...view } };
+    return;
+  }
+  const wp = world(p);
+  if (tool === "select") {
+    const found = hit(wp);
+    if (e.shiftKey) {
+      if (found)
+        selection.has(found.id)
+          ? selection.delete(found.id)
+          : selection.add(found.id);
+      refresh();
+      return;
+    }
+    if (found) {
+      if (!selection.has(found.id)) selection = new Set([found.id]);
+      drag = {
+        kind: "move",
+        pointerId: e.pointerId,
+        p: snapped(wp),
+        originals: new Map(
+          project.objects
+            .filter((o) => selection.has(o.id))
+            .map((o) => [o.id, { ...o }]),
+        ),
+        changed: false,
+      };
+    } else selection.clear();
+    refresh();
+    return;
+  }
+  const active = layer(project.activeLayer);
+  if (active.locked || !active.visible) {
+    toast(
+      "Aktive Ebene ist gesperrt oder ausgeblendet. Bitte eine andere Ebene wählen.",
+    );
+    return;
+  }
+  const q = snapped(wp, e.shiftKey);
+  if (tool === "text") {
+    askText("Beschriftung", "Raumname oder Hinweis eingeben", "", (text) => {
+      if (!text.trim()) return;
+      project.objects.push({
+        id: C.uid(),
+        type: "text",
+        x: q.x,
+        y: q.y,
+        x2: q.x,
+        y2: q.y,
+        text,
+        layer: project.activeLayer,
+        size: 150,
+      });
+      commit();
+    });
+    return;
+  }
+  start = q;
+  cursor = q;
+  drag = {
+    kind: "draw",
+    pointerId: e.pointerId,
+    origin: p,
+    threshold: e.pointerType === "touch" ? 6 : 3,
+  };
+  draw();
+});
+canvas.addEventListener("pointermove", (e) => {
+  const p = local(e);
+  if (pointers.has(e.pointerId)) pointers.set(e.pointerId, p);
+  if (pinch) {
+    if (!pinch.ids.every((id) => pointers.has(id))) return;
+    const [a, b] = pinch.ids.map((id) => pointers.get(id));
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
+      distance = Math.hypot(a.x - b.x, a.y - b.y);
+    if (is3d)
+      camera3d.zoom = Math.max(
+        0.2,
+        Math.min(5, (pinch.zoom3d * distance) / Math.max(pinch.distance, 1)),
+      );
+    else {
+      view.s = Math.max(
+        0.002,
+        Math.min(5, (pinch.view.s * distance) / Math.max(pinch.distance, 1)),
+      );
+      view.x = mid.x - ((pinch.mid.x - pinch.view.x) * view.s) / pinch.view.s;
+      view.y = mid.y - ((pinch.mid.y - pinch.view.y) * view.s) / pinch.view.s;
+    }
+    draw();
+    return;
+  }
+  if (drag && drag.pointerId !== e.pointerId) return;
+  if (drag?.kind === "orbit") {
+    camera3d.yaw = drag.yaw + (p.x - drag.p.x) * 0.008;
+    camera3d.pitch = Math.max(
+      0.08,
+      Math.min(1.5, drag.pitch + (p.y - drag.p.y) * 0.006),
+    );
+    draw();
+    return;
+  }
+  if (drag?.kind === "pan") {
+    view.x = drag.view.x + p.x - drag.p.x;
+    view.y = drag.view.y + p.y - drag.p.y;
+    draw();
+    return;
+  }
+  const wp = world(p);
+  $("#coords").textContent = "X " + fmt(wp.x) + " · Y " + fmt(wp.y);
+  if (drag?.kind === "move") {
+    moveSelection(p);
+    draw();
+  } else if (drag?.kind === "draw") {
+    cursor = snapped(wp, e.shiftKey);
+    draw();
+  }
+});
+function pointerEnd(e) {
+  if (!pointers.delete(e.pointerId)) return;
+  if (pinch) {
+    if (pointers.size >= 2 && pinch.ids.includes(e.pointerId)) beginPinch();
+    if (!pointers.size) pinch = null;
+    return;
+  }
+  if (drag?.pointerId !== e.pointerId) return;
+  if (drag.kind === "draw") {
+    if (!start) {
+      abortInteraction();
+      refresh();
+      return;
+    }
+    const p = local(e),
+      moved =
+        Math.hypot(p.x - drag.origin.x, p.y - drag.origin.y) >= drag.threshold;
+    const o = candidate(snapped(world(p), e.shiftKey));
+    const valid =
+      C.validObject(o) &&
+      C.length(o) >= 0.001 &&
+      (o.type !== "rect" || (o.x !== o.x2 && o.y !== o.y2));
+    // Final release position matters, even if the browser coalesced moves.
+    abortInteraction();
+    if (moved && valid) {
+      o.id = C.uid();
+      project.objects.push(o);
+      selection = new Set([o.id]);
+      commit();
+    } else {
+      draw();
+      toast(
+        moved
+          ? "Bitte größer ziehen oder das Raster verkleinern."
+          : "Zum Zeichnen gedrückt halten, ziehen und loslassen.",
+      );
+    }
+  } else if (drag.kind === "move") {
+    moveSelection(local(e));
+    const changed = drag.changed;
+    drag = null;
+    if (changed) commit();
+    else refresh();
+  } else drag = null;
+}
+function cancelPointer(e) {
+  if (!pointers.delete(e.pointerId)) return;
+  if (pinch) {
+    if (pointers.size >= 2 && pinch.ids.includes(e.pointerId)) beginPinch();
+    if (!pointers.size) pinch = null;
+  } else if (drag?.pointerId === e.pointerId) abortInteraction();
+  refresh();
+}
+canvas.addEventListener("pointerup", pointerEnd);
+canvas.addEventListener("pointercancel", cancelPointer);
+canvas.addEventListener("lostpointercapture", cancelPointer);
+canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+canvas.addEventListener(
+  "wheel",
+  (e) => {
+    e.preventDefault();
+    if (drag || pinch) return;
+    zoom(Math.exp(-e.deltaY * 0.0015), local(e));
+  },
+  { passive: false },
+);
+function renderLayers() {
+  const el = $("#layers");
+  el.innerHTML = project.layers
+    .map(
+      (l) =>
+        `<div class="layer-row ${l.id === project.activeLayer ? "active" : ""}"><span class="layer-dot" style="background:${l.color}"></span><button class="layer-name" data-layer="${E(l.id)}" title="Ebene aktivieren">${E(l.name)}</button><button data-visible="${E(l.id)}" title="${l.visible ? "Ausblenden" : "Einblenden"}" aria-label="${E(l.name)} ${l.visible ? "ausblenden" : "einblenden"}">${l.visible ? "◉" : "○"}</button><button data-lock="${E(l.id)}" title="${l.locked ? "Entsperren" : "Sperren"}" aria-label="${E(l.name)} ${l.locked ? "entsperren" : "sperren"}">${l.locked ? "▣" : "▫"}</button></div>`,
+    )
+    .join("");
+  el.querySelectorAll("[data-layer]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        abortInteraction();
+        project.activeLayer = b.dataset.layer;
+        start = null;
+        commit();
+      }),
+  );
+  el.querySelectorAll("[data-visible]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        abortInteraction();
+        const l = layer(b.dataset.visible);
+        l.visible = !l.visible;
+        selection.clear();
+        start = null;
+        commit();
+      }),
+  );
+  el.querySelectorAll("[data-lock]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        abortInteraction();
+        const l = layer(b.dataset.lock);
+        l.locked = !l.locked;
+        selection.clear();
+        start = null;
+        commit();
+      }),
+  );
+}
+function inspector() {
+  const panel = $("#inspector"),
+    items = project.objects.filter((o) => selection.has(o.id));
+  $("#selectionCount").textContent = items.length
+    ? items.length + " ausgewählt"
+    : "Keine Auswahl";
+  if (items.length !== 1) {
+    panel.innerHTML = items.length
+      ? `<div class="metrics">${items.length} Objekte gemeinsam verschieben, duplizieren oder löschen.</div>`
+      : '<div class="empty-inspector"><b>⌖</b><p class="muted">Wähle ein Objekt auf dem Plan.<br>Hier bearbeitest du Maße und Position.</p></div>';
+    return;
+  }
+  const o = items[0];
+  let metrics =
+    o.type === "rect"
+      ? `Breite ${fmt(Math.abs(o.x2 - o.x))} · Höhe ${fmt(Math.abs(o.y2 - o.y))}<br>Fläche ${areaFmt(Math.abs((o.x2 - o.x) * (o.y2 - o.y)))}`
+      : o.type === "circle"
+        ? `Radius ${fmt(C.length(o))} · Fläche ${areaFmt(Math.PI * C.length(o) ** 2)}`
+        : o.type === "text"
+          ? "Beschriftung"
+          : `Länge ${fmt(C.length(o))}`;
+  const field = (label, key, value, extra = "") =>
+    `<label>${label}<input type="number" step="any" data-prop="${key}" value="${value}" ${extra}></label>`;
+  let fields =
+    field("Position X (" + project.unit + ")", "x", num(o.x)) +
+    field("Position Y (" + project.unit + ")", "y", num(o.y));
+  if (o.type === "rect")
+    fields +=
+      field(
+        "Breite (" + project.unit + ")",
+        "width",
+        num(Math.abs(o.x2 - o.x)),
+        'min="0.001"',
+      ) +
+      field(
+        "Höhe (" + project.unit + ")",
+        "height",
+        num(Math.abs(o.y2 - o.y)),
+        'min="0.001"',
+      );
+  else if (o.type === "circle")
+    fields += field(
+      "Radius (" + project.unit + ")",
+      "radius",
+      num(C.length(o)),
+      'min="0.001"',
+    );
+  else if (o.type === "text")
+    fields +=
+      `<label class="full">Text<input data-prop="text" maxlength="1000" value="${E(o.text)}"></label>` +
+      field(
+        "Schriftgröße (" + project.unit + ")",
+        "size",
+        num(o.size || 150),
+        'min="0.001"',
+      );
+  else
+    fields +=
+      field(
+        "Länge (" + project.unit + ")",
+        "length",
+        num(C.length(o)),
+        'min="0.001"',
+      ) +
+      field(
+        "Winkel (°, im Uhrzeigersinn)",
+        "angle",
+        +((Math.atan2(o.y2 - o.y, o.x2 - o.x) * 180) / Math.PI).toFixed(3),
+      );
+  if (o.type === "wall")
+    fields += field(
+      "Wandstärke (" + project.unit + ")",
+      "thickness",
+      num(o.thickness || 150),
+      'min="0.001"',
+    );
+  if (o.type === "dimension")
+    fields += field(
+      "Abstand (" + project.unit + ")",
+      "offset",
+      num(o.offset ?? 300),
+    );
+  if (["wall", "rect", "circle"].includes(o.type))
+    fields += field(
+      "Körperhöhe 3D (" + project.unit + ")",
+      "height3d",
+      num(o.height ?? (o.type === "wall" ? 2600 : 700)),
+      'min="0"',
+    );
+  fields += `<label class="full">Ebene<select data-prop="layer">${project.layers.map((l) => `<option value="${E(l.id)}" ${l.id === o.layer ? "selected" : ""}>${E(l.name)}</option>`).join("")}</select></label>`;
+  panel.innerHTML = `<div class="metrics">${metrics}</div><form id="propertyForm" class="fields">${fields}<button type="submit" class="full">Änderungen übernehmen ↵</button></form>`;
+  $("#propertyForm").onsubmit = (e) => {
+    e.preventDefault();
+    const next = { ...o };
+    for (const input of panel.querySelectorAll("[data-prop]")) {
+      const key = input.dataset.prop,
+        val = input.value;
+      if (key === "text" || key === "layer") {
+        next[key] = val;
+        continue;
+      }
+      const v = Number(val);
+      if (!Number.isFinite(v) || val === "") {
+        toast("Bitte gültige Zahlen eingeben.");
+        return;
+      }
+      if (key === "x" || key === "y") {
+        const end = key === "x" ? "x2" : "y2";
+        next[end] += v * unitFactor() - next[key];
+        next[key] = v * unitFactor();
+      } else if (key === "width") next.x2 = next.x + v * unitFactor();
+      else if (key === "height") next.y2 = next.y + v * unitFactor();
+      else if (key === "radius") {
+        next.x2 = next.x + v * unitFactor();
+        next.y2 = next.y;
+      } else if (key === "length") {
+        const angle = Math.atan2(next.y2 - next.y, next.x2 - next.x);
+        next.x2 = next.x + Math.cos(angle) * v * unitFactor();
+        next.y2 = next.y + Math.sin(angle) * v * unitFactor();
+      } else if (key === "angle") {
+        const length = C.length(next);
+        next.x2 = next.x + Math.cos((v * Math.PI) / 180) * length;
+        next.y2 = next.y + Math.sin((v * Math.PI) / 180) * length;
+      } else if (key === "height3d") next.height = v * unitFactor();
+      else next[key] = v * unitFactor();
+    }
+    if (!C.validObject(next)) {
+      toast("Maße liegen außerhalb des unterstützten Bereichs.");
+      return;
+    }
+    Object.assign(o, next);
+    if (!editable(o)) selection.clear();
+    commit();
+  };
+}
+function remove() {
+  if (!selection.size) return;
+  project.objects = project.objects.filter((o) => !selection.has(o.id));
+  selection.clear();
+  commit();
+}
+function duplicate() {
+  const copies = project.objects
+    .filter((o) => selection.has(o.id))
+    .map((o) => ({
+      ...o,
+      id: C.uid(),
+      x: o.x + project.grid,
+      y: o.y + project.grid,
+      x2: o.x2 + project.grid,
+      y2: o.y2 + project.grid,
+    }));
+  if (!copies.length) return;
+  project.objects.push(...copies);
+  selection = new Set(copies.map((o) => o.id));
+  commit();
+}
+function rotate() {
+  const items = project.objects.filter((o) => selection.has(o.id));
+  if (!items.length) return;
+  const b = C.sceneBounds(items),
+    cx = (b.x + b.x2) / 2,
+    cy = (b.y + b.y2) / 2;
+  for (const o of items) {
+    const a = { x: cx - (o.y - cy), y: cy + (o.x - cx) },
+      end = { x: cx - (o.y2 - cy), y: cy + (o.x2 - cx) };
+    Object.assign(o, { x: a.x, y: a.y, x2: end.x, y2: end.y });
+  }
+  commit();
+}
+function dialog(title, html) {
+  abortInteraction();
+  refresh();
+  $("#dialogTitle").textContent = title;
+  $("#dialogBody").innerHTML = html;
+  $("#dialog").showModal();
+}
+function askText(title, description, initial, cb) {
+  dialog(
+    title,
+    `<p>${E(description)}</p><form id="textForm"><input id="textValue" maxlength="1000" value="${E(initial)}" aria-label="${E(title)}" autofocus><div class="dialog-actions"><button type="button" id="cancelText">Abbrechen</button><button class="primary">Übernehmen</button></div></form>`,
+  );
+  $("#cancelText").onclick = () => $("#dialog").close();
+  $("#textForm").onsubmit = (e) => {
+    e.preventDefault();
+    const value = $("#textValue").value;
+    $("#dialog").close();
+    cb(value);
+  };
+  $("#textValue").focus();
+}
+function confirmReplace(title, cb) {
+  if (!project.objects.length) {
+    cb();
+    return;
+  }
+  dialog(
+    title,
+    '<p>Die aktuelle Zeichnung wird ersetzt. Lade sie bei Bedarf vorher über „Projekt sichern“ herunter. Mit Rückgängig kannst du den Wechsel zurücknehmen.</p><div class="dialog-actions"><button id="cancelReplace">Abbrechen</button><button id="doReplace" class="primary">Zeichnung ersetzen</button></div>',
+  );
+  $("#cancelReplace").onclick = () => $("#dialog").close();
+  $("#doReplace").onclick = () => {
+    $("#dialog").close();
+    cb();
+  };
+}
+function example() {
+  confirmReplace("Beispielgrundriss öffnen", () => {
+    project = blank();
+    project.name = "Atelier 01 · Beispiel";
+    const add = (type, x, y, x2, y2, layer, extra = {}) =>
+      project.objects.push({
+        id: C.uid(),
+        type,
+        x,
+        y,
+        x2,
+        y2,
+        layer,
+        ...extra,
+      });
+    [
+      [0, 0, 8000, 0],
+      [8000, 0, 8000, 5500],
+      [8000, 5500, 0, 5500],
+      [0, 5500, 0, 0],
+      [5000, 0, 5000, 2200],
+      [5000, 3200, 5000, 5500],
+      [5000, 2500, 8000, 2500],
+    ].forEach((a) => add("wall", ...a, "walls", { thickness: 180 }));
+    add("rect", 450, 450, 2400, 1300, "furniture");
+    add("rect", 450, 1700, 1450, 2200, "furniture");
+    add("circle", 3100, 2800, 3750, 2800, "furniture");
+    add("rect", 5600, 450, 7500, 1800, "furniture");
+    add("rect", 6000, 3500, 7200, 4800, "furniture");
+    add("text", 600, 4500, 600, 4500, "notes", {
+      text: "WOHNEN / ARBEITEN",
+      size: 170,
+    });
+    add("text", 5500, 2150, 5500, 2150, "notes", { text: "RUHE", size: 150 });
+    add("text", 5500, 5100, 5500, 5100, "notes", { text: "KÜCHE", size: 150 });
+    add("dimension", 0, 0, 8000, 0, "notes", { offset: -500 });
+    add("dimension", 8000, 0, 8000, 5500, "notes", { offset: -500 });
+    selection.clear();
+    start = null;
+    setTool("select");
+    commit();
+    fit();
+  });
+}
+function download(name, data, type) {
+  const url = URL.createObjectURL(new Blob([data], { type })),
+    a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+const filename = () =>
+  project.name.replace(/[^\p{L}\p{N}_ -]/gu, "").trim() || "grundriss";
+function save() {
+  download(
+    filename() + ".json",
+    JSON.stringify(project, null, 2),
+    "application/json",
+  );
+}
+function exportSVG() {
+  if (is3d) {
+    download(
+      filename() + "-3d.svg",
+      `<svg xmlns="${NS}" viewBox="0 0 ${stage.clientWidth} ${stage.clientHeight}"><rect width="100%" height="100%" fill="#f5f7f2"/>${scene.innerHTML}</svg>`,
+      "image/svg+xml",
+    );
+    return;
+  }
+  const before = { ...view };
+  fit();
+  const b = C.sceneBounds(visible()),
+    pad = 100 / view.s,
+    x = b.x - pad,
+    y = b.y - pad,
+    w = b.x2 - b.x + pad * 2,
+    h = b.y2 - b.y + pad * 2;
+  const content = `<svg xmlns="${NS}" viewBox="${x} ${y} ${w} ${h}" width="1200" height="${Math.round((1200 * h) / w)}"><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="white"/>${visible()
+    .map((o) => objectSVG(o, false, true))
+    .join("")}</svg>`;
+  view = before;
+  draw();
+  download(filename() + ".svg", content, "image/svg+xml");
+}
+async function importFile(file) {
+  if (file.size > 20 * 1024 * 1024) {
+    toast("Maximale Dateigröße: 20 MB.");
+    return;
+  }
+  try {
+    const text = await file.text();
+    let next,
+      report = "";
+    if (file.name.toLowerCase().endsWith(".json")) {
+      next = C.validateProject(JSON.parse(text));
+    } else if (file.name.toLowerCase().endsWith(".dxf")) {
+      const parsed = C.readDXF(text, unitFactor());
+      if (!parsed.objects.length)
+        throw Error("Keine unterstützten DXF-Objekte gefunden.");
+      next = blank();
+      next.name = file.name.replace(/\.dxf$/i, "");
+      next.unit = project.unit;
+      const names = [...new Set(parsed.objects.map((o) => o.layer))];
+      next.layers = names.map((name, i) => ({
+        id: "import-" + i,
+        name,
+        color: ["#355e55", "#a77a52", "#69859a"][i % 3],
+        visible: true,
+        locked: false,
+      }));
+      next.objects = parsed.objects.map((o) => ({
+        ...o,
+        layer: next.layers[names.indexOf(o.layer)].id,
+      }));
+      next.activeLayer = next.layers[0].id;
+      report =
+        (parsed.unitKnown
+          ? "DXF-Einheit übernommen."
+          : "DXF ohne unterstützte Einheitenangabe: als " +
+            project.unit +
+            " interpretiert.") +
+        (Object.keys(parsed.skipped).length
+          ? " Übersprungen: " +
+            Object.entries(parsed.skipped)
+              .map(([k, v]) => k + " (" + v + ")")
+              .join(", ")
+          : "");
+    } else throw Error("Bitte eine JSON- oder ASCII-DXF-Datei auswählen.");
+    confirmReplace("Datei importieren", () => {
+      project = next;
+      selection.clear();
+      start = null;
+      commit();
+      fit();
+      dialog(
+        "Import abgeschlossen",
+        `<p>${next.objects.length} Objekte geladen.</p><p>${E(report)}</p><p>Maße nach dem Import anhand einer bekannten Strecke prüfen.</p>`,
+      );
+    });
+  } catch (e) {
+    dialog("Import nicht möglich", `<p>${E(e.message)}</p>`);
+  }
+}
+$("#new").onclick = () =>
+  confirmReplace("Neue Zeichnung", () => {
+    project = blank();
+    selection.clear();
+    start = null;
+    commit();
+    fit();
+  });
+$("#example").onclick = example;
+$("#welcomeExample").onclick = example;
+$("#save").onclick = save;
+$("#open").onclick = () => $("#file").click();
+$("#file").onchange = (e) => {
+  const file = e.target.files[0];
+  if (file) importFile(file);
+  e.target.value = "";
+};
+$("#dxf").onclick = () => {
+  download(filename() + ".dxf", C.writeDXF(project), "application/dxf");
+  toast(
+    "DXF in Millimetern exportiert. Maßlinien sind im SVG-/PDF-Export enthalten.",
+  );
+};
+$("#svgExport").onclick = exportSVG;
+$("#print").onclick = () => {
+  const previous = { ...view },
+    chosen = new Set(selection);
+  selection.clear();
+  fit();
+  draw();
+  window.print();
+  view = previous;
+  selection = chosen;
+  draw();
+};
+$("#undo").onclick = () => undo(-1);
+$("#redo").onclick = () => undo(1);
+$("#delete").onclick = remove;
+$("#duplicate").onclick = duplicate;
+$("#rotate").onclick = rotate;
+$("#plus").onclick = () => zoom(1.25);
+$("#minus").onclick = () => zoom(0.8);
+$("#fit").onclick = fit;
+$("#unit").onchange = () => {
+  project.unit = $("#unit").value;
+  commit();
+};
+$("#grid").onchange = () => {
+  const g = Number($("#grid").value) * unitFactor();
+  if (g > 0 && g <= 1e8 && Number.isFinite(g)) {
+    project.grid = g;
+    commit();
+  } else refresh();
+};
+$("#showDims").onchange = draw;
+$("#projectName").onchange = () => {
+  project.name = $("#projectName").value.trim() || "Mein Grundriss";
+  commit();
+};
+$("#addLayer").onclick = () =>
+  askText("Neue Ebene", "Name der Ebene", "", (name) => {
+    if (!name.trim()) return;
+    if (project.layers.length >= 100) {
+      toast("Maximal 100 Ebenen.");
+      return;
+    }
+    const id = C.uid();
+    project.layers.push({
+      id,
+      name: name.slice(0, 60),
+      color: "#658399",
+      visible: true,
+      locked: false,
+    });
+    project.activeLayer = id;
+    commit();
+  });
+$("#mobilePanel").onclick = () => $("#panel").classList.toggle("open");
+$("#closePanel").onclick = () => $("#panel").classList.remove("open");
+$("#dialogClose").onclick = () => $("#dialog").close();
+$("#help").onclick = () =>
+  dialog(
+    "Präzise planen. Einfach zeichnen.",
+    `<p>Wähle ein Werkzeug, drücke am Startpunkt, ziehe bis zum Endpunkt und lasse los. Das funktioniert mit Maus, Finger und Stift. Während des Ziehens siehst du die Form und ihre Maße. Ein kurzes Antippen erzeugt kein Zeichenobjekt. Wände werden über ihre Mittellinie gezeichnet. Texte benötigen einen Punkt. Die Maßlinie bleibt als eigenes Objekt erhalten; ihren Abstand stellst du in den Eigenschaften ein.</p><p>Mit „Auswahl“ Objekte am Rand antippen und ziehen. Auf dem Computer hältst du Umschalt für Mehrfachauswahl, auf dem Handy verwendest du zwei Finger zum Zoomen. Die Eigenschaften erlauben exakte Positionen, Längen, Breiten, Radien und Winkel. „Änderungen übernehmen“ bestätigt die Eingabe.</p><p>Fang verbindet Rasterpunkte und vorhandene Endpunkte. „90°“ oder Umschalt beim Zeichnen begrenzt Linien und Wände auf horizontal/vertikal. Einheiten ändern nur die Anzeige, nicht die Größe der Zeichnung.</p><div class="shortcut-grid"><span><kbd>V / L / W</kbd> Auswahl / Linie / Wand</span><span><kbd>R / C / D</kbd> Rechteck / Kreis / Maß</span><span><kbd>T / H / F</kbd> Text / Ansicht / Einpassen</span><span><kbd>Entf</kbd> Löschen</span><span><kbd>Strg/Cmd + Z</kbd> Rückgängig</span><span><kbd>Strg/Cmd + D</kbd> Duplizieren</span><span><kbd>Strg/Cmd + S</kbd> Projekt sichern</span><span><kbd>Esc</kbd> Zeichnung abbrechen</span></div><p>Import: JSON-Projekte und ASCII-DXF (LINE, CIRCLE, TEXT, gerade LWPOLYLINE). DWG, Blöcke und Bögen werden nicht unterstützt; übersprungene Elemente werden gemeldet. Alte Projektdateien werden als Zentimeter übernommen. DXF exportiert Millimeter und wandelt Wände/Rechtecke in Linien um; Maßlinien nur in SVG/PDF. PDF über den Druckdialog, ohne garantierten Druckmaßstab.</p><p>3D: Wände, Rechtecke und Kreise werden zu einfachen Körpern. Die Körperhöhe stellst du in den Eigenschaften ein. Ziehen dreht die Ansicht, Mausrad/Zweifingergeste zoomt. Ebenensichtbarkeit gilt auch in 3D. Linien, Texte und Maßlinien bleiben in 2D. Die Vorschau hat keine Türen-/Fensterausschnitte und keine automatische Wandverschneidung.</p><p>2D-Planungshilfe, kein Ersatz für ein vollständiges CAD- oder Statikprogramm. Autosave liegt nur in diesem Browser. Zeichnungen zusätzlich als Projektdatei sichern.</p>`,
+  );
+function switchView(value) {
+  abortInteraction();
+  is3d = value;
+  start = null;
+  drag = null;
+  $("#view2d").classList.toggle("active", !value);
+  $("#view3d").classList.toggle("active", value);
+  canvas.querySelector("rect").style.display = value ? "none" : "";
+  $(".plan-badge span").textContent = value ? "RAUMVORSCHAU" : "PLANANSICHT";
+  $(".plan-badge b").textContent = value ? "3D" : "2D";
+  $("#toolName").textContent = value ? "3D-Vorschau" : tools[tool][0];
+  $("#hint").textContent = value
+    ? "Ziehen zum Drehen · Zoomen mit Mausrad oder zwei Fingern"
+    : tools[tool][1];
+  canvas.style.cursor = value ? "grab" : "default";
+  draw();
+}
+function draw3D() {
+  const objs = visible().filter((o) =>
+      ["wall", "rect", "circle"].includes(o.type),
+    ),
+    bounds = C.sceneBounds(objs);
+  const height = Math.max(
+      100,
+      ...objs.map((o) => o.height ?? (o.type === "wall" ? 2600 : 700)),
+    ),
+    size = Math.max(bounds.x2 - bounds.x, bounds.y2 - bounds.y, height, 1000);
+  const camera = {
+    ...camera3d,
+    cx: (bounds.x + bounds.x2) / 2,
+    cy: (bounds.y + bounds.y2) / 2,
+    cz: height * 0.35,
+    width: stage.clientWidth,
+    height: stage.clientHeight,
+    scale:
+      ((Math.min(stage.clientWidth, stage.clientHeight) * 0.7) / size) *
+      camera3d.zoom,
+  };
+  scene.removeAttribute("transform");
+  scene.innerHTML = CAD3D.svg(objs, bounds, camera);
+  $("#welcome").hidden = true;
+  $("#liveMeasure").style.display = "block";
+  $("#liveMeasure").textContent = objs.length
+    ? "3D · " + objs.length + " Körper · Höhen in Eigenschaften ändern"
+    : "Für die 3D-Vorschau Wände, Rechtecke oder Kreise zeichnen.";
+  $("#zoomLabel").textContent = Math.round(camera3d.zoom * 100) + "%";
+  $("#count").textContent = project.objects.length + " Objekte";
+}
+$("#view2d").onclick = () => switchView(false);
+$("#view3d").onclick = () => switchView(true);
+document
+  .querySelectorAll("[data-tool]")
+  .forEach((b) => (b.onclick = () => setTool(b.dataset.tool)));
+document.addEventListener("keydown", (e) => {
+  if (
+    $("#dialog").open ||
+    /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)
+  )
+    return;
+  const k = e.key.toLowerCase(),
+    mod = e.ctrlKey || e.metaKey;
+  if (mod && ["z", "y", "d", "s", "a"].includes(k)) {
+    e.preventDefault();
+    if (k === "z") undo(e.shiftKey ? 1 : -1);
+    if (k === "y") undo(1);
+    if (k === "d") duplicate();
+    if (k === "s") save();
+    if (k === "a") {
+      selection = new Set(
+        visible()
+          .filter(editable)
+          .map((o) => o.id),
+      );
+      refresh();
+    }
+    return;
+  }
+  if (e.code === "Space") {
+    e.preventDefault();
+    space = true;
+  }
+  if (e.key === "Escape") {
+    start = null;
+    cursor = null;
+    selection.clear();
+    setTool("select");
+    refresh();
+  }
+  if (e.key === "Delete" || e.key === "Backspace") {
+    e.preventDefault();
+    remove();
+  }
+  const t = {
+    v: "select",
+    w: "wall",
+    l: "line",
+    r: "rect",
+    c: "circle",
+    d: "dimension",
+    t: "text",
+    h: "pan",
+  }[k];
+  if (t && !mod) setTool(t);
+  if (k === "f" && !mod) fit();
+});
+document.addEventListener("keyup", (e) => {
+  if (e.code === "Space") space = false;
+});
+window.addEventListener("blur", () => {
+  space = false;
+  abortInteraction();
+  pointers.clear();
+  pinch = null;
+  refresh();
+});
+new ResizeObserver(() => draw()).observe(stage);
+try {
+  const stored = localStorage.getItem("grundriss-studio-v2");
+  if (stored) project = C.validateProject(JSON.parse(stored));
+  else {
+    const old = localStorage.getItem("grundriss-cad-autosave");
+    if (old)
+      project = C.validateProject({
+        format: "grundriss-cad",
+        version: 1,
+        objects: JSON.parse(old),
+      });
+  }
+} catch (e) {
+  storageOK = false;
+  toast(
+    "Lokale Sicherung konnte nicht geladen werden. Projektdatei importieren.",
+  );
+}
+history = [snapshot()];
+historyIndex = 0;
+setTool("select");
+refresh();
+fit();
+
+</script>
+  </body>
+</html>
